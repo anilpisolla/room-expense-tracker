@@ -1,49 +1,99 @@
 // Import Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, get, set, push, onValue } from "firebase/database";
 
-// Firebase Config
+// Firebase configuration (Keep your API Key safe)
 const firebaseConfig = {
-    apiKey: "AIzaSyCBe9jh76fiYtjvRB3UdBX8mTbDmNoVzqQ",
-    authDomain: "room-expensetracker-dsnr.firebaseapp.com",
-    databaseURL: "https://room-expensetracker-dsnr-default-rtdb.firebaseio.com",
-    projectId: "room-expensetracker-dsnr",
-    storageBucket: "room-expensetracker-dsnr.firebasestorage.app",
-    messagingSenderId: "1029815670820",
-    appId: "1:1029815670820:web:5e2a91d7bdf4b0305960b1"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "room-expensetracker-dsnr.firebaseapp.com",
+  databaseURL: "https://room-expensetracker-dsnr-default-rtdb.firebaseio.com",
+  projectId: "room-expensetracker-dsnr",
+  storageBucket: "room-expensetracker-dsnr.appspot.com",
+  messagingSenderId: "1029815670820",
+  appId: "1:1029815670820:web:5e2a91d7bdf4b0305960b1"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Reference to database
-const expenseRef = ref(db, "expenses");
+// Get HTML Elements
+const expenseNameInput = document.getElementById("expense-name");
+const expenseAmountInput = document.getElementById("expense-amount");
+const addExpenseButton = document.getElementById("add-expense");
+const expensesList = document.getElementById("expenses-list");
+const totalCollectedText = document.getElementById("total-collected");
+const remainingBalanceText = document.getElementById("remaining-balance");
 
-// Form Handling
-document.getElementById("expense-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const person = document.getElementById("person").value;
-    const amount = document.getElementById("amount").value;
+// Load Initial Data from Firebase
+function loadInitialData() {
+    get(ref(db, "/")).then((snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            totalCollectedText.innerText = `Total Collected: ₹${data.totalCollected}`;
+            remainingBalanceText.innerText = `Remaining Balance: ₹${data.remainingBalance}`;
+            displayExpenses(data.expenses || []);
+        } else {
+            console.log("No data found");
+        }
+    });
+}
 
-    if (person && amount) {
-        push(expenseRef, { person, amount });
-        document.getElementById("expense-form").reset();
+// Display Expenses List
+function displayExpenses(expenses) {
+    expensesList.innerHTML = "";
+    expenses.forEach(expense => {
+        const li = document.createElement("li");
+        li.innerText = `${expense.name}: ₹${expense.amount}`;
+        expensesList.appendChild(li);
+    });
+}
+
+// Add New Expense
+addExpenseButton.addEventListener("click", () => {
+    const name = expenseNameInput.value.trim();
+    const amount = parseInt(expenseAmountInput.value);
+
+    if (name === "" || isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid expense name and amount.");
+        return;
+    }
+
+    get(ref(db, "/")).then((snapshot) => {
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            const newBalance = data.remainingBalance - amount;
+
+            if (newBalance < 0) {
+                alert("Not enough balance! Collect money from roommates.");
+                return;
+            }
+
+            // Add expense to Firebase
+            const newExpenseRef = push(ref(db, "/expenses"));
+            set(newExpenseRef, { name, amount });
+
+            // Update Firebase balance
+            set(ref(db, "/totalSpent"), data.totalSpent + amount);
+            set(ref(db, "/remainingBalance"), newBalance);
+
+            // Refresh UI
+            loadInitialData();
+            expenseNameInput.value = "";
+            expenseAmountInput.value = "";
+        }
+    });
+});
+
+// Real-time Updates
+onValue(ref(db, "/"), (snapshot) => {
+    if (snapshot.exists()) {
+        const data = snapshot.val();
+        totalCollectedText.innerText = `Total Collected: ₹${data.totalCollected}`;
+        remainingBalanceText.innerText = `Remaining Balance: ₹${data.remainingBalance}`;
+        displayExpenses(data.expenses || []);
     }
 });
 
-// Fetch and Display Data
-onValue(expenseRef, (snapshot) => {
-    const expenses = snapshot.val();
-    const expenseList = document.getElementById("expense-list");
-    let total = 0;
-
-    expenseList.innerHTML = "";
-    for (let id in expenses) {
-        const item = expenses[id];
-        total += parseFloat(item.amount);
-        expenseList.innerHTML += `<li>${item.person}: ₹${item.amount}</li>`;
-    }
-
-    document.getElementById("balance").innerText = `₹${total}`;
-});
+// Load data on page load
+loadInitialData();

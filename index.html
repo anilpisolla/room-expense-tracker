@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Room Expense Tracker</h1>
+
+    <form id="expense-form">
+        <input type="text" id="person" placeholder="Enter Name" required>
+        <input type="number" id="amount" placeholder="Enter Amount" required>
+        <button type="submit">Add Expense</button>
+    </form>
+
+    <h2>Expenses</h2>
+    <ul id="expense-list"></ul>
+
+    <h3>Total Balance: <span id="balance">0</span></h3>
+
+    <!-- Firebase -->
+    <script type="module" src="script.js"></script>
+</body>
+</html>
